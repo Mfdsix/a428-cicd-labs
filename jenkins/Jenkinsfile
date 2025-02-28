@@ -1,32 +1,23 @@
-pipeline {
-    agent {
-        docker {
-            image 'node:lts-buster-slim'
-            args '--privileged -p 3000:3000 -e DOCKER_TLS_VERIFY=0'
-        }
+node {
+    stage('Checkout') {
+        checkout scm
     }
-    environment {
-        CI = 'true'
-        DOCKER_TLS_VERIFY = '0'
-        DOCKER_CERT_PATH = ''
-    }
-    stages {
-        stage('Build') {
-            steps {
+
+    stage('Build') {
+        docker.image('node:lts-buster-slim').inside('--privileged -p 3000:3000 -e DOCKER_TLS_VERIFY=0') {
+            withEnv(["CI=true", "DOCKER_TLS_VERIFY=0", "DOCKER_CERT_PATH="]) {
                 sh 'npm install'
             }
         }
-        stage('Test') {
-            steps {
-                sh './jenkins/scripts/test.sh'
-            }
-        }
-        stage('Deliver') {
-            steps {
-                sh './jenkins/scripts/deliver.sh'
-                input message: 'Finished using the website? (Click "Proceed" to continue)'
-                sh './jenkins/scripts/kill.sh'
-            }
-        }
+    }
+
+    stage('Test') {
+        sh './jenkins/scripts/test.sh'
+    }
+
+    stage('Deliver') {
+        sh './jenkins/scripts/deliver.sh'
+        input message: 'Finished using the website? (Click "Proceed" to continue)'
+        sh './jenkins/scripts/kill.sh'
     }
 }
