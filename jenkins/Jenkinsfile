@@ -23,7 +23,8 @@ node {
 
     stage('Deliver') {
         sh './jenkins/scripts/deliver.sh'
-        input message: 'Finished using the website? (Click "Proceed" to continue)'
+        echo 'Biarkan Aplikasi berjalan selama 1 menit...'
+        sleep 60
         sh './jenkins/scripts/kill.sh'
     }
 }
