@@ -21,10 +21,36 @@ services:
     restart: always
     ports:
       - "49000:49000"
+      - "3031:3031"
+      - "9091:9091"
     networks:
       - jenkins
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: always
+    networks:
+      - jenkins
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: always
+    networks:
+      - jenkins
+    volumes:
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SERVER_HTTP_PORT=3030
 
 networks:
   jenkins:
@@ -35,3 +61,5 @@ volumes:
     external: true
   jenkins-docker-certs:
     external: true
+  grafana-data:
+    driver: local
