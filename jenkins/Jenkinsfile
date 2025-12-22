@@ -30,6 +30,7 @@ node {
     }
 
     stage('Deliver') {
+        sh 'rm -rf "$WORKSPACE/build"'
         sh """
           docker run --rm \
             --user 1000:1000 \
