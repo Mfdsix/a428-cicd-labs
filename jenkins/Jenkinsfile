@@ -1,16 +1,18 @@
-node {
+node('docker') {
+
     stage('Checkout') {
         checkout scm
         sh 'ls -la'
     }
 
     stage('Build') {
-        sh 'docker run --rm -v $PWD:/app -w /app node:lts-buster-slim ls -la'
-        sh 'docker pull node:lts-buster-slim'
-        sh 'docker run --rm -v $PWD:/app -w /app --pull always node:lts-buster-slim ls -la'
-        sh 'docker run --rm -v $PWD:/app node:lts-buster-slim sh -c "mkdir -p /app && ls -la /app"'
-        sh 'docker run --rm --privileged -v $PWD:/app -w /app node:lts-buster-slim ls -la'
-        sh 'docker run --rm -it -v $PWD:/app -w /app node:lts-buster-slim bash'
+        sh '''
+          docker run --rm \
+            -v ${WORKSPACE}:/app \
+            -w /app \
+            node:lts-buster-slim \
+            ls -la
+        '''
     }
 
     stage('Test') {
