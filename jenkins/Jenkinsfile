@@ -10,7 +10,7 @@ node {
           docker run --rm \
             -v "$PWD:/app" \
             -w /app \
-            node:lts-buster-slim \
+            node:16-buster-slim \
             ls -la
         '''
     }
@@ -20,7 +20,7 @@ node {
           docker run --rm \
             -v "${WORKSPACE}:/app" \
             -w /app \
-            node:lts-buster-slim \
+            node:16-buster-slim \
             sh ./jenkins/scripts/test.sh
         """
     }
@@ -34,13 +34,13 @@ node {
           docker run --rm \
             -v "${WORKSPACE}:/app" \
             -w /app \
-            node:lts-buster-slim \
+            node:16-buster-slim \
             sh ./jenkins/scripts/deliver.sh
         """
 
         echo 'Biarkan Aplikasi berjalan selama 1 menit...'
         sleep 60
-        
+
         sh './jenkins/scripts/kill.sh'
     }
 }
