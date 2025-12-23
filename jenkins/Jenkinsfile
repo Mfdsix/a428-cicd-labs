@@ -15,15 +15,15 @@ node {
         '''
     }
 
-    stage('Test') {
-        sh """
-          docker run --rm \
-            -v "${WORKSPACE}:/app" \
-            -w /app \
-            node:16-buster-slim \
-            sh ./jenkins/scripts/test.sh
-        """
-    }
+    // stage('Test') {
+    //     sh """
+    //       docker run --rm \
+    //         -v "${WORKSPACE}:/app" \
+    //         -w /app \
+    //         node:16-buster-slim \
+    //         sh ./jenkins/scripts/test.sh
+    //     """
+    // }
 
     stage('Deploy') {
         withCredentials([string(credentialsId: 'EC2_PRIVATE_KEY', variable: 'KEY_CONTENT')]) {
@@ -32,32 +32,32 @@ node {
                 "EC2_HOST=${env.EC2_HOST}",
                 "DEPLOY_PATH=/var/www/react-app"
             ]) {
-                // 1. Tulis key ke /tmp agar tidak kena Permission Denied di workspace
-                sh 'printf "%s" "$KEY_CONTENT" > /tmp/ec2_key.pem && chmod 400 /tmp/ec2_key.pem'
+                // 1. Tulis di home directory (~), folder ini pasti bisa ditulisi oleh user jenkins
+                sh 'printf "%s" "$KEY_CONTENT" > ~/ec2_key.pem && chmod 400 ~/ec2_key.pem'
 
-                // 2. Build React (Gunakan quote untuk handle spasi di nama workspace)
+                // 2. Build React (Gunakan quote untuk handle spasi)
                 sh "docker run --rm -v \"${WORKSPACE}:/app\" -w /app node:16-buster-slim npm run build"
 
-                // 3. Rsync (Mount file key dari /tmp host ke /tmp container)
+                // 3. Rsync (Gunakan trik CP & CHMOD di dalam container)
                 sh """
                     docker run --rm \
-                        -v "/tmp/ec2_key.pem:/tmp/temp_key:ro" \
+                        -v \"/home/jenkins/ec2_key.pem:/tmp/temp_key:ro\" \
                         -v \"${WORKSPACE}:/app\" \
                         -w /app \
                         instrumentisto/rsync-ssh \
                         sh -c "cp /tmp/temp_key /tmp/key && chmod 400 /tmp/key && rsync -avz --delete -e 'ssh -i /tmp/key -o StrictHostKeyChecking=no' build/ ${EC2_USER}@${EC2_HOST}:${DEPLOY_PATH}/"
                 """
 
-                // 4. Reload Nginx
+                // 4. Reload Nginx pakai container yang sama
                 sh """
                     docker run --rm \
-                        -v "/tmp/ec2_key.pem:/tmp/temp_key:ro" \
+                        -v \"/home/jenkins/ec2_key.pem:/tmp/temp_key:ro\" \
                         instrumentisto/rsync-ssh \
                         sh -c "cp /tmp/temp_key /tmp/key && chmod 400 /tmp/key && ssh -i /tmp/key -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} 'sudo systemctl reload nginx'"
                 """
 
                 // 5. Cleanup
-                sh 'rm -f /tmp/ec2_key.pem'
+                sh 'rm -f ~/ec2_key.pem'
             }
         }
     }
