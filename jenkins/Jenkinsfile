@@ -26,14 +26,12 @@ node {
     }
 
     stage('Deploy') {
-        environment {
-            EC2_USER    = "${env.EC2_USER}"
-            EC2_HOST    = "${env.EC2_HOST}"
-            DEPLOY_PATH = '/var/www/react-app'
-            SSH_KEY     = credentials('ec2-ssh-key')
-        }
+        withEnv([
+            "EC2_USER=${env.EC2_USER}",
+            "EC2_HOST=${env.EC2_HOST}",
+            "DEPLOY_PATH=/var/www/react-app"
+        ]) {
 
-        steps {
             def userChoice = input(
                 message: 'Lanjutkan ke tahap Deploy?',
                 parameters: [
@@ -50,29 +48,24 @@ node {
             }
 
             sh '''
-            docker run --rm \
-                -v "$WORKSPACE:/app" \
-                -w /app \
-                node:16-buster-slim \
-                sh -c "npm install && npm run build"
+              rsync -avz --delete \
+                -e "ssh -o StrictHostKeyChecking=no" \
+                build/ \
+                ${EC2_USER}@${EC2_HOST}:${DEPLOY_PATH}/
             '''
 
             sh '''
-                rsync -avz --delete \
-                    build/ \
-                    ${EC2_USER}@${EC2_HOST}:${DEPLOY_PATH}/
+              ssh -o StrictHostKeyChecking=no \
+                ${EC2_USER}@${EC2_HOST} \
+                "sudo systemctl reload nginx"
             '''
 
-            sh '''
-                ssh ${EC2_USER}@${EC2_HOST} \
-                    "sudo systemctl reload nginx"
-            '''
-
-            echo 'Biarkan Aplikasi berjalan selama 1 menit...'
+            echo 'Biarkan aplikasi berjalan selama 1 menit...'
             sleep 60
 
             sh '''
-            ssh ${EC2_USER}@${EC2_HOST} \
+              ssh -o StrictHostKeyChecking=no \
+                ${EC2_USER}@${EC2_HOST} \
                 "sudo systemctl stop nginx"
             '''
         }
