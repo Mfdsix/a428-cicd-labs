@@ -70,9 +70,6 @@ node {
                         --deployment-group-name ReactAppGroup \
                         --s3-location bucket=mfdsix-006-dcdg-react-app,key=deploy.zip,bundleType=zip
             """
-
-            echo 'Biarkan aplikasi berjalan selama 1 menit...'
-            sleep 60
         }
     }
 }
