@@ -49,27 +49,32 @@ node {
                 error 'Deploy dibatalkan oleh user'
             }
 
+            sh '''
             docker run --rm \
                 -v "$WORKSPACE:/app" \
                 -w /app \
                 node:16-buster-slim \
                 sh -c "npm install && npm run build"
+            '''
 
-            rsync -avz --delete \
-                -e "ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no" \
-                build/ \
-                ${EC2_USER}@${EC2_HOST}:${DEPLOY_PATH}/
+            sh '''
+                rsync -avz --delete \
+                    build/ \
+                    ${EC2_USER}@${EC2_HOST}:${DEPLOY_PATH}/
+            '''
 
-            ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no \
-                ${EC2_USER}@${EC2_HOST} \
-                "sudo systemctl reload nginx"
+            sh '''
+                ssh ${EC2_USER}@${EC2_HOST} \
+                    "sudo systemctl reload nginx"
+            '''
 
             echo 'Biarkan Aplikasi berjalan selama 1 menit...'
             sleep 60
 
-            ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no \
-                ${EC2_USER}@${EC2_HOST} \
+            sh '''
+            ssh ${EC2_USER}@${EC2_HOST} \
                 "sudo systemctl stop nginx"
+            '''
         }
     }
 }
