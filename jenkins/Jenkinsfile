@@ -30,13 +30,10 @@ node {
             string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
             string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
         ]) {
-            // Build React
             sh "docker run --rm -v \"${WORKSPACE}:/app\" -w /app node:16-buster-slim npm run build"
 
-            // Zip hasil build (pake docker supaya pasti ada zip-nya)
             sh 'docker run --rm -v "${WORKSPACE}:/app" -w /app alpine sh -c "apk add zip && zip -r deploy.zip build/ appspec.yml scripts/"'
 
-            // Upload ke S3 & Trigger CodeDeploy pake container AWS CLI (biar ga usah install di Jenkins host)
             sh """
                 docker run --rm \
                     -e AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} \
@@ -44,7 +41,7 @@ node {
                     -e AWS_DEFAULT_REGION=ap-southeast-1 \
                     -v "${WORKSPACE}:/app" -w /app \
                     amazon/aws-cli \
-                    s3 cp deploy.zip s3://nama-bucket-lu/deploy.zip
+                    s3 cp deploy.zip s3://mfdsix-006-dcdg-react-app/deploy.zip
             """
 
             sh """
@@ -54,9 +51,9 @@ node {
                     -e AWS_DEFAULT_REGION=ap-southeast-1 \
                     amazon/aws-cli \
                     deploy create-deployment \
-                        --application-name NamaAppLu \
-                        --deployment-group-name NamaGroupLu \
-                        --s3-location bucket=nama-bucket-lu,key=deploy.zip,bundleType=zip
+                        --application-name ReactApp \
+                        --deployment-group-name ReactAppGroup \
+                        --s3-location bucket=mfdsix-006-dcdg-react-app,key=deploy.zip,bundleType=zip
             """
         }
     }
