@@ -63,7 +63,9 @@ node {
                         -v "$WORKSPACE:/app" \
                         -w /app \
                         instrumentisto/rsync-ssh \
-                        rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no" build/ ${EC2_USER}@${EC2_HOST}:${DEPLOY_PATH}/
+                        rsync -avz --delete \
+                        -e "ssh -o StrictHostKeyChecking=no -o ForwardAgent=yes" \
+                        build/ ${EC2_USER}@${EC2_HOST}:${DEPLOY_PATH}/
                 '''
 
                 sh '''
