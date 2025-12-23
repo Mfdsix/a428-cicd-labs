@@ -1,11 +1,7 @@
 node {
 
-    stage('Checkout') {
-        checkout scm
-        sh 'ls -la'
-    }
-
     stage('Build') {
+        checkout scm
         sh '''
           docker run --rm \
             -v "$PWD:/app" \
@@ -25,7 +21,7 @@ node {
         """
     }
 
-    stage('Deploy') {
+    stage('Manual Approval') {
         def userChoice = input(
             message: 'Lanjutkan ke tahap Deploy?',
             parameters: [
@@ -40,7 +36,9 @@ node {
         if (userChoice == 'Jangan Dulu') {
             error 'Deploy dibatalkan oleh user'
         }
+    }
 
+    stage('Deploy') {
         withCredentials([
             string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
             string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
