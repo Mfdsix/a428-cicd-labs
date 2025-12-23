@@ -32,23 +32,21 @@ node {
                 "EC2_HOST=${env.EC2_HOST}",
                 "DEPLOY_PATH=/var/www/react-app"
             ]) {
-                sh 'echo "$KEY_CONTENT" > ec2_key.pem && chmod 400 ec2_key.pem'
+                sh 'printf "%s" "$KEY_CONTENT" > ec2_key.pem && chmod 400 ec2_key.pem'
 
-                sh 'docker run --rm -v "$WORKSPACE:/app" -w /app node:16-buster-slim npm run build'
+                sh "docker run --rm -v \"${WORKSPACE}:/app\" -w /app node:16-buster-slim npm run build"
 
-                sh '''
+                sh """
                     docker run --rm \
-                        -v "$WORKSPACE:/app" \
+                        -v \"${WORKSPACE}:/app\" \
                         -w /app \
                         instrumentisto/rsync-ssh \
                         rsync -avz --delete \
                         -e "ssh -i /app/ec2_key.pem -o StrictHostKeyChecking=no" \
                         build/ ${EC2_USER}@${EC2_HOST}:${DEPLOY_PATH}/
-                '''
+                """
 
-                sh '''
-                    ssh -i ec2_key.pem -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "sudo systemctl reload nginx"
-                '''
+                sh "ssh -i ec2_key.pem -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} 'sudo systemctl reload nginx'"
 
                 sh 'rm -f ec2_key.pem'
             }
