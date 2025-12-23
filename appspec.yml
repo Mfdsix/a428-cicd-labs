@@ -8,3 +8,7 @@ hooks:
     - location: aws/scripts/reload-nginx.sh
       timeout: 120
       runas: root
+  ApplicationStart:
+    - location: aws/scripts/stop-nginx.sh
+      timeout: 120
+      runas: root
