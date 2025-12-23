@@ -26,24 +26,37 @@ node {
     // }
 
     stage('Deploy') {
-        // Panggil ID kredensial yang lu buat tadi
-        withAWS(credentials: 'aws-creds', region: 'ap-southeast-1') {
-            
-            // 1. Build
+        withCredentials([
+            string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+            string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
+        ]) {
+            // Build React
             sh "docker run --rm -v \"${WORKSPACE}:/app\" -w /app node:16-buster-slim npm run build"
 
-            // 2. Zip (Pastikan zip terinstall di Jenkins, kalau nggak pakai container)
-            sh "zip -r deploy.zip build/ appspec.yml scripts/"
+            // Zip hasil build (pake docker supaya pasti ada zip-nya)
+            sh 'docker run --rm -v "${WORKSPACE}:/app" -w /app alpine sh -c "apk add zip && zip -r deploy.zip build/ appspec.yml scripts/"'
 
-            // 3. Upload ke S3
-            sh "aws s3 cp deploy.zip s3://nama-bucket-lu/deploy.zip"
-
-            // 4. Trigger CodeDeploy
+            // Upload ke S3 & Trigger CodeDeploy pake container AWS CLI (biar ga usah install di Jenkins host)
             sh """
-                aws deploy create-deployment \
-                    --application-name NamaAppLu \
-                    --deployment-group-name NamaGroupLu \
-                    --s3-location bucket=nama-bucket-lu,key=deploy.zip,bundleType=zip
+                docker run --rm \
+                    -e AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} \
+                    -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
+                    -e AWS_DEFAULT_REGION=ap-southeast-1 \
+                    -v "${WORKSPACE}:/app" -w /app \
+                    amazon/aws-cli \
+                    s3 cp deploy.zip s3://nama-bucket-lu/deploy.zip
+            """
+
+            sh """
+                docker run --rm \
+                    -e AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} \
+                    -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
+                    -e AWS_DEFAULT_REGION=ap-southeast-1 \
+                    amazon/aws-cli \
+                    deploy create-deployment \
+                        --application-name NamaAppLu \
+                        --deployment-group-name NamaGroupLu \
+                        --s3-location bucket=nama-bucket-lu,key=deploy.zip,bundleType=zip
             """
         }
     }
