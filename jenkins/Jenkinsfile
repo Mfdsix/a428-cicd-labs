@@ -26,6 +26,21 @@ node {
     }
 
     stage('Deploy') {
-        
+        input message: 'Lanjutkan ke tahap Deploy?', ok: 'Gas'
+        sh 'rm -rf "$WORKSPACE/build"'
+
+        sh """
+        docker run -d --name react-app \
+            -p 3000:3000 \
+            -v "${WORKSPACE}:/app" \
+            -w /app \
+            node:16-buster-slim \
+            sh ./jenkins/scripts/deliver.sh
+        """
+
+        echo 'Biarkan Aplikasi berjalan selama 1 menit...'
+        sleep 60
+
+        sh './jenkins/scripts/kill.sh'
     }
 }

@@ -1,4 +1,0 @@
-#!/bin/bash -ex
-
-touch /var/www/html/index.html
-service httpd start
