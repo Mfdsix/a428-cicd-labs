@@ -1,0 +1,4 @@
+#!/bin/bash -ex
+
+yum install -y httpd
+systemctl enable httpd.service
