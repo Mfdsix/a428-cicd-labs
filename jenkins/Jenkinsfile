@@ -26,7 +26,21 @@ node {
     }
 
     stage('Deploy') {
-        input message: 'Lanjutkan ke tahap Deploy?', ok: 'Gas'
+        def userChoice = input(
+            message: 'Lanjutkan ke tahap Deploy?',
+            parameters: [
+                choice(
+                    name: 'ACTION',
+                    choices: ['Gas', 'Jangan Dulu'],
+                    description: 'Pilih aksi'
+                )
+            ]
+        )
+
+        if (userChoice == 'Jangan Dulu') {
+            error 'Deploy dibatalkan oleh user'
+        }
+
         sh 'rm -rf "$WORKSPACE/build"'
 
         sh """
