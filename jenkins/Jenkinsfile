@@ -47,7 +47,7 @@ node {
         ]) {
             sh "docker run --rm -v \"${WORKSPACE}:/app\" -w /app node:16-buster-slim npm run build"
 
-            sh 'docker run --rm -v "${WORKSPACE}:/app" -w /app alpine sh -c "apk add zip && zip -r deploy.zip build/ appspec.yml scripts/"'
+            sh 'docker run --rm -v "${WORKSPACE}:/app" -w /app alpine sh -c "apk add zip && zip -r deploy.zip build/ appspec.yml aws/scripts/"'
 
             sh """
                 docker run --rm \
