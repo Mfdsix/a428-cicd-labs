@@ -26,35 +26,50 @@ node {
     }
 
     stage('Deploy') {
-        def userChoice = input(
-            message: 'Lanjutkan ke tahap Deploy?',
-            parameters: [
-                choice(
-                    name: 'ACTION',
-                    choices: ['Gas', 'Jangan Dulu'],
-                    description: 'Pilih aksi'
-                )
-            ]
-        )
-
-        if (userChoice == 'Jangan Dulu') {
-            error 'Deploy dibatalkan oleh user'
+        environment {
+            EC2_USER    = "${env.EC2_USER}"
+            EC2_HOST    = "${env.EC2_HOST}"
+            DEPLOY_PATH = '/var/www/react-app'
+            SSH_KEY     = credentials('ec2-ssh-key')
         }
 
-        sh 'rm -rf "$WORKSPACE/build"'
+        steps {
+            def userChoice = input(
+                message: 'Lanjutkan ke tahap Deploy?'
+                parameters: [
+                    choice(
+                        name: 'ACTION',
+                        choices: ['Gas', 'Jangan Dulu'],
+                        description: 'Pilih aksi'
+                    )
+                ]
+            )
 
-        sh """
-        docker run -d --name react-app \
-            -p 3000:3000 \
-            -v "${WORKSPACE}:/app" \
-            -w /app \
-            node:16-buster-slim \
-            sh ./jenkins/scripts/deliver.sh
-        """
+            if (userChoice == 'Jangan Dulu') {
+                error 'Deploy dibatalkan oleh user'
+            }
 
-        echo 'Biarkan Aplikasi berjalan selama 1 menit...'
-        sleep 60
+            docker run --rm \
+                -v "$WORKSPACE:/app" \
+                -w /app \
+                node:16-buster-slim \
+                sh -c "npm install && npm run build"
 
-        sh './jenkins/scripts/kill.sh'
+            rsync -avz --delete \
+                -e "ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no" \
+                build/ \
+                ${EC2_USER}@${EC2_HOST}:${DEPLOY_PATH}/
+
+            ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no \
+                ${EC2_USER}@${EC2_HOST} \
+                "sudo systemctl reload nginx"
+
+            echo 'Biarkan Aplikasi berjalan selama 1 menit...'
+            sleep 60
+
+            ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no \
+                ${EC2_USER}@${EC2_HOST} \
+                "sudo systemctl stop nginx"
+        }
     }
 }
