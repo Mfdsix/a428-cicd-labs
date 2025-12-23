@@ -26,59 +26,31 @@ node {
     }
 
     stage('Deploy') {
-        withEnv([
-            "EC2_USER=${env.EC2_USER}",
-            "EC2_HOST=${env.EC2_HOST}",
-            "DEPLOY_PATH=/var/www/react-app"
-        ]) {
+        withCredentials([string(credentialsId: 'EC2_PRIVATE_KEY', variable: 'KEY_CONTENT')]) {
+            withEnv([
+                "EC2_USER=${env.EC2_USER}",
+                "EC2_HOST=${env.EC2_HOST}",
+                "DEPLOY_PATH=/var/www/react-app"
+            ]) {
+                sh 'echo "$KEY_CONTENT" > ec2_key.pem && chmod 400 ec2_key.pem'
 
-            def userChoice = input(
-                message: 'Lanjutkan ke tahap Deploy?',
-                parameters: [
-                    choice(
-                        name: 'ACTION',
-                        choices: ['Gas', 'Jangan Dulu'],
-                        description: 'Pilih aksi'
-                    )
-                ]
-            )
+                sh 'docker run --rm -v "$WORKSPACE:/app" -w /app node:16-buster-slim npm run build'
 
-            if (userChoice == 'Jangan Dulu') {
-                error 'Deploy dibatalkan oleh user'
-            }
-
-            sh '''
-              docker run --rm \
-                -v "$WORKSPACE:/app" \
-                -w /app \
-                node:16-buster-slim \
-                sh -c "npm run build"
-            '''
-
-            sshagent(['ec2-ssh-key']) {
                 sh '''
                     docker run --rm \
-                        -e SSH_AUTH_SOCK=$SSH_AUTH_SOCK \
-                        -v $SSH_AUTH_SOCK:$SSH_AUTH_SOCK \
                         -v "$WORKSPACE:/app" \
                         -w /app \
                         instrumentisto/rsync-ssh \
                         rsync -avz --delete \
-                        -e "ssh -o StrictHostKeyChecking=no -o ForwardAgent=yes" \
+                        -e "ssh -i /app/ec2_key.pem -o StrictHostKeyChecking=no" \
                         build/ ${EC2_USER}@${EC2_HOST}:${DEPLOY_PATH}/
                 '''
 
                 sh '''
-                    ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "sudo systemctl reload nginx"
+                    ssh -i ec2_key.pem -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "sudo systemctl reload nginx"
                 '''
 
-                echo 'Biarkan aplikasi berjalan selama 1 menit...'
-                sleep 60
-
-                sh '''
-                    ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "sudo systemctl stop nginx"
-                '''
+                sh 'rm -f ec2_key.pem'
             }
         }
     }
-}
