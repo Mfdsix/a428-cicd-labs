@@ -41,17 +41,20 @@ node {
                 // 3. Rsync (Mount file key dari /tmp host ke /tmp container)
                 sh """
                     docker run --rm \
-                        -v \"/tmp/ec2_key.pem:/tmp/ec2_key.pem:ro\" \
+                        -v "/tmp/ec2_key.pem:/tmp/temp_key:ro" \
                         -v \"${WORKSPACE}:/app\" \
                         -w /app \
                         instrumentisto/rsync-ssh \
-                        rsync -avz --delete \
-                        -e "ssh -i /tmp/ec2_key.pem -o StrictHostKeyChecking=no" \
-                        build/ ${EC2_USER}@${EC2_HOST}:${DEPLOY_PATH}/
+                        sh -c "cp /tmp/temp_key /tmp/key && chmod 400 /tmp/key && rsync -avz --delete -e 'ssh -i /tmp/key -o StrictHostKeyChecking=no' build/ ${EC2_USER}@${EC2_HOST}:${DEPLOY_PATH}/"
                 """
 
                 // 4. Reload Nginx
-                sh "ssh -i /tmp/ec2_key.pem -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} 'sudo systemctl reload nginx'"
+                sh """
+                    docker run --rm \
+                        -v "/tmp/ec2_key.pem:/tmp/temp_key:ro" \
+                        instrumentisto/rsync-ssh \
+                        sh -c "cp /tmp/temp_key /tmp/key && chmod 400 /tmp/key && ssh -i /tmp/key -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} 'sudo systemctl reload nginx'"
+                """
 
                 // 5. Cleanup
                 sh 'rm -f /tmp/ec2_key.pem'
