@@ -15,17 +15,32 @@ node {
         '''
     }
 
-    // stage('Test') {
-    //     sh """
-    //       docker run --rm \
-    //         -v "${WORKSPACE}:/app" \
-    //         -w /app \
-    //         node:16-buster-slim \
-    //         sh ./jenkins/scripts/test.sh
-    //     """
-    // }
+    stage('Test') {
+        sh """
+          docker run --rm \
+            -v "${WORKSPACE}:/app" \
+            -w /app \
+            node:16-buster-slim \
+            sh ./jenkins/scripts/test.sh
+        """
+    }
 
     stage('Deploy') {
+        def userChoice = input(
+            message: 'Lanjutkan ke tahap Deploy?',
+            parameters: [
+                choice(
+                    name: 'ACTION',
+                    choices: ['Gas', 'Jangan Dulu'],
+                    description: 'Pilih aksi'
+                )
+            ]
+        )
+
+        if (userChoice == 'Jangan Dulu') {
+            error 'Deploy dibatalkan oleh user'
+        }
+
         withCredentials([
             string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
             string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY')
@@ -55,6 +70,9 @@ node {
                         --deployment-group-name ReactAppGroup \
                         --s3-location bucket=mfdsix-006-dcdg-react-app,key=deploy.zip,bundleType=zip
             """
+
+            echo 'Biarkan aplikasi berjalan selama 1 menit...'
+            sleep 60
         }
     }
 }
