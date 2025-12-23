@@ -55,29 +55,28 @@ node {
                 sh -c "npm run build"
             '''
 
-            sh '''
-                docker run --rm \
-                    -v "$WORKSPACE:/app" \
-                    -v "/home/jenkins/.ssh:/root/.ssh" \
-                    -w /app \
-                    instrumentisto/rsync-ssh \
-                    rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no" build/ ${EC2_USER}@${EC2_HOST}:${DEPLOY_PATH}/
-            '''
+            sshagent(['ec2-ssh-key']) {
+                sh '''
+                    docker run --rm \
+                        -e SSH_AUTH_SOCK=$SSH_AUTH_SOCK \
+                        -v $SSH_AUTH_SOCK:$SSH_AUTH_SOCK \
+                        -v "$WORKSPACE:/app" \
+                        -w /app \
+                        instrumentisto/rsync-ssh \
+                        rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no" build/ ${EC2_USER}@${EC2_HOST}:${DEPLOY_PATH}/
+                '''
 
-            sh '''
-              ssh -o StrictHostKeyChecking=no \
-                ${EC2_USER}@${EC2_HOST} \
-                "sudo systemctl reload nginx"
-            '''
+                sh '''
+                    ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "sudo systemctl reload nginx"
+                '''
 
-            echo 'Biarkan aplikasi berjalan selama 1 menit...'
-            sleep 60
+                echo 'Biarkan aplikasi berjalan selama 1 menit...'
+                sleep 60
 
-            sh '''
-              ssh -o StrictHostKeyChecking=no \
-                ${EC2_USER}@${EC2_HOST} \
-                "sudo systemctl stop nginx"
-            '''
+                sh '''
+                    ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "sudo systemctl stop nginx"
+                '''
+            }
         }
     }
 }
