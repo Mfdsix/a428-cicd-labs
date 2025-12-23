@@ -35,7 +35,7 @@ node {
 
         steps {
             def userChoice = input(
-                message: 'Lanjutkan ke tahap Deploy?'
+                message: 'Lanjutkan ke tahap Deploy?',
                 parameters: [
                     choice(
                         name: 'ACTION',
