@@ -26,40 +26,25 @@ node {
     // }
 
     stage('Deploy') {
-    // Pastikan ID 'EC2_PRIVATE_KEY' sudah ada di Jenkins Credentials (Secret Text)
-        withCredentials([string(credentialsId: 'EC2_PRIVATE_KEY', variable: 'KEY_CONTENT')]) {
-            withEnv([
-                "EC2_USER=${env.EC2_USER}",
-                "EC2_HOST=${env.EC2_HOST}",
-                "DEPLOY_PATH=/var/www/react-app"
-            ]) {
-                // 1. Tulis file key di workspace saat ini (paling aman dari permission denied)
-                sh 'printf "%s" "$KEY_CONTENT" > deploy_key.pem && chmod 400 deploy_key.pem'
+        // Panggil ID kredensial yang lu buat tadi
+        withAWS(credentials: 'aws-creds', region: 'ap-southeast-1') {
+            
+            // 1. Build
+            sh "docker run --rm -v \"${WORKSPACE}:/app\" -w /app node:16-buster-slim npm run build"
 
-                // 2. Build React (Gunakan quote untuk handle spasi di nama workspace)
-                sh "docker run --rm -v \"${WORKSPACE}:/app\" -w /app node:16-buster-slim npm run build"
+            // 2. Zip (Pastikan zip terinstall di Jenkins, kalau nggak pakai container)
+            sh "zip -r deploy.zip build/ appspec.yml scripts/"
 
-                // 3. Rsync (Gunakan /app/deploy_key.pem karena file ada di dalam workspace yang sudah di-mount ke /app)
-                sh """
-                    docker run --rm \
-                        -v \"${WORKSPACE}:/app\" \
-                        -w /app \
-                        instrumentisto/rsync-ssh \
-                        sh -c "cp /app/deploy_key.pem /tmp/key && chmod 400 /tmp/key && rsync -avz --delete -e 'ssh -i /tmp/key -o StrictHostKeyChecking=no' build/ ${EC2_USER}@${EC2_HOST}:${DEPLOY_PATH}/"
-                """
+            // 3. Upload ke S3
+            sh "aws s3 cp deploy.zip s3://nama-bucket-lu/deploy.zip"
 
-                // 4. Reload Nginx
-                sh """
-                    docker run --rm \
-                        -v \"${WORKSPACE}:/app\" \
-                        -w /app \
-                        instrumentisto/rsync-ssh \
-                        sh -c "cp /app/deploy_key.pem /tmp/key && chmod 400 /tmp/key && ssh -i /tmp/key -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} 'sudo systemctl reload nginx'"
-                """
-
-                // 5. Cleanup
-                sh 'rm -f deploy_key.pem'
-            }
+            // 4. Trigger CodeDeploy
+            sh """
+                aws deploy create-deployment \
+                    --application-name NamaAppLu \
+                    --deployment-group-name NamaGroupLu \
+                    --s3-location bucket=nama-bucket-lu,key=deploy.zip,bundleType=zip
+            """
         }
     }
 }
